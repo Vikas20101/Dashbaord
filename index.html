@@ -512,23 +512,42 @@
             } catch (error) { console.error("Error pushing all orders:", error); showNotification("Failed to push all orders."); }
         };
 
-        const exportToCSV = () => {
-            const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
-            if (deliveredOrders.length === 0) { showNotification("No delivered orders to export."); return; }
-            const headers = ['OrderName', 'Created', 'Pushed', 'Accepted', 'Processing', 'OnRoute', 'Delivered'];
-            const rows = deliveredOrders.map(o => {
-                const ts = o.timestamps;
-                return [`"${o.orderName.replace(/"/g, '""')}"`,formatTimestamp(ts.createdAt),formatTimestamp(ts.pushedAt),formatTimestamp(ts.acceptedAt),formatTimestamp(ts.processingAt),formatTimestamp(ts.onRouteAt),formatTimestamp(ts.deliveredAt),].join(',');
+        const exportToCSV = async () => {
+        const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
+        if (deliveredOrders.length === 0) { 
+            showNotification("No delivered orders to export."); 
+            return; 
+        }
+
+        // This part creates and downloads the file
+        const headers = ['OrderName', 'Created', 'Pushed', 'Accepted', 'Processing', 'OnRoute', 'Delivered'];
+        const rows = deliveredOrders.map(o => {
+            const ts = o.timestamps;
+            return [`"${o.orderName.replace(/"/g, '""')}"`,formatTimestamp(ts.createdAt),formatTimestamp(ts.pushedAt),formatTimestamp(ts.acceptedAt),formatTimestamp(ts.processingAt),formatTimestamp(ts.onRouteAt),formatTimestamp(ts.deliveredAt),].join(',');
+        });
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `delivered_orders_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // --- This new part clears the list after exporting ---
+        try {
+            const batch = writeBatch(db);
+            deliveredOrders.forEach(order => {
+                const orderRef = doc(db, `artifacts/${appId}/public/data/orders`, order.id);
+                batch.delete(orderRef);
             });
-            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `delivered_orders_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
+            await batch.commit();
+            showNotification(`Successfully exported and cleared ${deliveredOrders.length} completed orders.`);
+        } catch (error) {
+            console.error("Error clearing orders after export:", error);
+            showNotification("Exported successfully, but failed to clear the list.");
+        }
+    };
 
         // --- EVENT LISTENERS ---
         supplierViewBtn.addEventListener('click', () => setView('supplier'));
