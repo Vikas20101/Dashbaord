@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Animated Order Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Base colors from palette */
+        :root {
+            --bg-dark-start: #4a4a4a;
+            --bg-dark-end: #1a1a1a;
+            --bg-card-tint: rgba(60, 40, 30, 0.15); /* Subtle brown tint for cards */
+            --primary-orange: #F5651D;
+            --accent-brown: #762D16;
+            --text-light: #F3F3F3;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark-end);
+            background-image: radial-gradient(circle at 50% 0%, var(--bg-dark-start) 0%, var(--bg-dark-end) 70%);
+            color: var(--text-light);
+            background-attachment: fixed;
+        }
+        
+        .card {
+            background: rgba(44, 44, 44, 0.45);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-card-tint);
+            z-index: 1;
+        }
+        .card > * { position: relative; z-index: 2; }
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 16px 45px 0 rgba(0, 0, 0, 0.5);
+            background: rgba(44, 44, 44, 0.6);
+        }
+
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeSlideIn 0.6s ease-out forwards; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark-end); }
+        ::-webkit-scrollbar-thumb { background: var(--primary-orange); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-brown); }
+        
+        .pushable {
+            background: var(--accent-brown);
+            border-radius: 12px;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            outline-offset: 4px;
+            transition: filter .15s;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        .pushable-front {
+            display: block;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            background: var(--primary-orange);
+            transform: translateY(-4px);
+            will-change: transform;
+            transition: transform .15s;
+        }
+        .pushable:hover { filter: brightness(110%); }
+        .pushable:hover .pushable-front { transform: translateY(-6px); }
+        .pushable:active .pushable-front { transform: translateY(-2px); }
+        .pushable.small .pushable-front { padding: 8px 16px; font-size: 0.875rem; }
+
+        .view-slider {
+            display: flex;
+            position: relative;
+            background-color: rgba(0,0,0,0.4);
+            border-radius: 99px;
+            padding: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .view-slider-option {
+            padding: 8px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #aaa;
+            transition: color 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+        .view-slider-option.active { color: white; }
+        .view-slider-thumb {
+            position: absolute;
+            top: 4px;
+            height: calc(100% - 8px);
+            background: var(--primary-orange);
+            border-radius: 99px;
+            box-shadow: 0 0 10px var(--primary-orange);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            z-index: 1;
+        }
+        
+        .three-canvas { width: 50px !important; height: 50px !important; }
+
+        /* --- NEW AESTHETIC PROGRESS BAR --- */
+        .progress-container {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .progress-track-base {
+            position: absolute;
+            height: 4px;
+            width: 100%;
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 2px;
+            z-index: 1;
+        }
+        .progress-track-line {
+            position: absolute;
+            height: 4px;
+            background: var(--primary-orange);
+            border-radius: 2px;
+            box-shadow: 0 0 8px var(--primary-orange);
+            z-index: 2;
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        .step-wrapper { display: flex; flex-direction: column; align-items: center; z-index: 3; width: 80px; }
+        .progress-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.4s ease; background-color: rgba(0,0,0,0.3); border: 2px solid #555; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+        .progress-icon.active { background-color: var(--primary-orange); border-color: var(--text-light); transform: scale(1.2); box-shadow: 0 0 15px var(--primary-orange); }
+        .progress-icon.completed { background-color: #10b981; border-color: #fff; }
+        .progress-icon svg { width: 20px; height: 20px; color: var(--text-light); }
+        .step-label { margin-top: 8px; font-size: 12px; font-weight: 500; color: #ccc; transition: color 0.4s ease; }
+        .step-wrapper.active .step-label { color: var(--primary-orange); font-weight: 700; }
+        .step-wrapper.completed .step-label { color: #10b981; }
+
+        /* --- NEW AESTHETIC LOADING ANIMATION --- */
+        .comet-loader {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            position: relative;
+            animation: rotate 1.2s linear infinite;
+        }
+        .comet-loader::before , .comet-loader::after {
+            content: "";
+            box-sizing: border-box;
+            position: absolute;
+            inset: 0px;
+            border-radius: 50%;
+            border: 4px solid #333;
+        }
+        .comet-loader::after {
+            border-color: var(--primary-orange);
+            animation: rotate 0.6s linear infinite;
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0deg) }
+            100% { transform: rotate(360deg) }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Container -->
+    <div class="min-h-screen flex flex-col items-center p-4">
+        
+        <!-- Header -->
+        <div class="w-full max-w-7xl mx-auto mb-6 text-center">
+            <h1 class="text-4xl font-extrabold text-white" style="text-shadow: 0 0 15px rgba(245, 101, 29, 0.5);">Order Fulfillment Dashboard</h1>
+            <p class="text-gray-400 mt-2">Your User ID (Share with colleagues): <code id="userId" class="bg-gray-800 bg-opacity-50 text-orange-400 text-sm p-1 rounded">...loading</code></p>
+        </div>
+
+        <!-- View Switcher -->
+        <div class="flex items-center justify-center mb-8">
+            <div id="view-slider" class="view-slider">
+                <div id="view-slider-thumb" class="view-slider-thumb"></div>
+                <div id="supplier-view-btn" class="view-slider-option">Supplier</div>
+                <div id="manager-view-btn" class="view-slider-option active">Manager</div>
+            </div>
+        </div>
+        
+        <!-- Loading Container -->
+        <div id="loading" class="text-center pt-10">
+            <div class="comet-loader mx-auto"></div>
+            <p class="mt-4 text-gray-400">Syncing with the network...</p>
+        </div>
+
+        <!-- Dashboards Container -->
+        <div id="dashboards" class="w-full max-w-7xl mx-auto hidden">
+            <!-- Manager Dashboard -->
+            <div id="manager-dashboard">
+                 <div class="card p-6 rounded-xl mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">Create a New Order</h2>
+                    <div class="flex space-x-4">
+                        <input type="text" id="order-name-input" placeholder="e.g., '500x Hyper-Widgets'" class="flex-grow p-3 bg-gray-900 bg-opacity-50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-white">
+                        <button id="create-order-btn" class="pushable">
+                            <span class="pushable-front">Create Order</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div class="card p-4 rounded-xl">
+                        <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">New</h2><div id="new-orders-icon"></div></div>
+                        <div id="new-orders-list" class="space-y-4 min-h-[200px]"></div>
+                        <button id="push-all-btn" class="hidden mt-4 w-full pushable">
+                            <span class="pushable-front">Push All (10+)</span>
+                        </button>
+                    </div>
+                    <div class="card p-4 rounded-xl">
+                         <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">In Progress</h2><div id="pushed-orders-icon"></div></div>
+                        <div id="pushed-orders-list" class="space-y-3 min-h-[200px]"></div>
+                    </div>
+                    <div class="card p-4 rounded-xl">
+                         <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">Completed</h2><div id="delivered-orders-icon"></div></div>
+                         <button id="export-csv-btn" class="mb-4 w-full pushable"><span class="pushable-front">Export CSV</span></button>
+                        <div id="delivered-orders-list" class="space-y-3 min-h-[150px] max-h-[400px] overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Dashboard -->
+            <div id="supplier-dashboard" class="hidden">
+                 <h2 class="text-3xl font-bold text-white mb-6 text-center">Incoming Orders</h2>
+                 <div id="supplier-orders-list" class="space-y-8 min-h-[200px]"></div>
+            </div>
+        </div>
+        
+        <!-- Notification Modal -->
+        <div id="notification-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div class="card p-8 rounded-lg text-center max-w-sm">
+                <p id="notification-message" class="text-lg font-medium text-white"></p>
+                 <button id="notification-close-btn" class="mt-6 pushable"><span class="pushable-front">OK</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, query, writeBatch, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 3D ICONS SETUP ---
+        function create3DScene(containerId, geometry, color) {
+            const container = document.getElementById(containerId);
+            if (!container || container.childElementCount > 0) return;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(50, 50);
+            container.appendChild(renderer.domElement);
+            const material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.5, roughness: 0.5 });
+            const shape = new THREE.Mesh(geometry, material);
+            scene.add(shape);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            camera.position.z = 2.5;
+            function animate() {
+                requestAnimationFrame(animate);
+                shape.rotation.x += 0.005;
+                shape.rotation.y += 0.005;
+                if(containerId === 'delivered-orders-icon') {
+                    const scale = 1 + Math.sin(Date.now() * 0.002) * 0.1;
+                    shape.scale.set(scale, scale, scale);
+                }
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // --- CONFIG & INIT ---
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+        apiKey: "AIzaSyC8VEP1u6nzYPwLKaDTQGgJQPwmy8agXfs",
+        authDomain: "dashbaord-7b138.firebaseapp.com",
+        projectId: "dashbaord-7b138",
+        storageBucket: "dashbaord-7b138.firebasestorage.app",
+        messagingSenderId: "36456305702",
+        appId: "1:36456305702:web:272ea32363c30082ff42e7",
+        measurementId: "G-25N1M1ZYTK"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-order-dashboard-v7';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        setLogLevel('debug');
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // --- STATE & DOM ---
+        let currentView = 'manager', allOrders = [], userId = null, ordersUnsubscribe = null;
+        const managerDashboard = document.getElementById('manager-dashboard'), supplierDashboard = document.getElementById('supplier-dashboard'), loadingSpinner = document.getElementById('loading'), dashboardsContainer = document.getElementById('dashboards'), userIdDisplay = document.getElementById('userId');
+        const supplierViewBtn = document.getElementById('supplier-view-btn');
+        const managerViewBtn = document.getElementById('manager-view-btn');
+        const sliderThumb = document.getElementById('view-slider-thumb');
+
+        // --- UTILITY FUNCTIONS ---
+        const showNotification = (message) => {
+            document.getElementById('notification-message').textContent = message;
+            document.getElementById('notification-modal').classList.remove('hidden');
+        };
+        document.getElementById('notification-close-btn').addEventListener('click', () => {
+            document.getElementById('notification-modal').classList.add('hidden');
+        });
+        const formatTimestamp = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A';
+        
+        const getStatusBadge = (status) => {
+            const badges = {
+                new: 'bg-gray-700 text-gray-300',
+                pushed: 'bg-yellow-500 text-yellow-900 animate-pulse',
+                accepted: 'bg-blue-500 text-blue-100',
+                processing: 'bg-indigo-500 text-indigo-100',
+                'on-route': 'bg-purple-500 text-purple-100',
+                delivered: 'bg-green-500 text-green-100',
+            };
+            const text = status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            return `<span class="text-xs font-bold mr-2 px-2.5 py-1 rounded-full ${badges[status] || 'bg-gray-700'}">${text}</span>`;
+        };
+        
+        // --- RENDER FUNCTIONS ---
+        const renderManagerDashboard = () => {
+            const newOrdersList = document.getElementById('new-orders-list');
+            const pushedOrdersList = document.getElementById('pushed-orders-list');
+            const deliveredOrdersList = document.getElementById('delivered-orders-list');
+            const pushAllBtn = document.getElementById('push-all-btn');
+            newOrdersList.innerHTML = pushedOrdersList.innerHTML = deliveredOrdersList.innerHTML = '';
+            const newOrders = allOrders.filter(o => o.status === 'new');
+            const inProgressOrders = allOrders.filter(o => o.status !== 'new' && o.status !== 'delivered');
+            const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
+
+            if (newOrders.length > 0) {
+                newOrders.forEach(order => {
+                    const orderEl = document.createElement('div');
+                    orderEl.className = 'fade-in flex items-center justify-between p-3 bg-gray-900 bg-opacity-30 rounded-lg';
+                    orderEl.innerHTML = `<span class="font-medium">${order.orderName}</span><button data-id="${order.id}" class="push-one-btn pushable small"><span class="pushable-front">Push</span></button>`;
+                    newOrdersList.appendChild(orderEl);
+                });
+            } else { newOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">All clear!</p>`; }
+            if (newOrders.length >= 10) pushAllBtn.classList.remove('hidden'); else pushAllBtn.classList.add('hidden');
+
+            if (inProgressOrders.length > 0) {
+                inProgressOrders.sort((a,b) => (b.timestamps.createdAt?.toMillis() || 0) - (a.timestamps.createdAt?.toMillis() || 0));
+                inProgressOrders.forEach(order => {
+                    const orderEl = document.createElement('div');
+                    orderEl.className = 'fade-in flex items-center justify-between p-3 bg-gray-900 bg-opacity-30 rounded-lg';
+                    orderEl.innerHTML = `<span class="font-medium">${order.orderName}</span>${getStatusBadge(order.status)}`;
+                    pushedOrdersList.appendChild(orderEl);
+                });
+            } else { pushedOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">No active orders.</p>`; }
+            
+            if (deliveredOrders.length > 0) {
+                deliveredOrders.sort((a,b) => (b.timestamps.deliveredAt?.toMillis() || 0) - (a.timestamps.deliveredAt?.toMillis() || 0));
+                deliveredOrders.forEach(order => {
+                    const ts = order.timestamps;
+                    const orderEl = document.createElement('div');
+                    orderEl.className = 'fade-in p-3 bg-gray-900 bg-opacity-30 rounded-lg';
+                    orderEl.innerHTML = `
+                        <div class="flex justify-between items-center mb-2"><span class="font-medium">${order.orderName}</span><span class="text-sm font-semibold text-green-400">Completed</span></div>
+                        <div class="text-xs text-gray-400 mt-2 grid grid-cols-2 gap-1">
+                            <span><b>Pushed:</b> ${formatTimestamp(ts.pushedAt)}</span>
+                            <span><b>Accepted:</b> ${formatTimestamp(ts.acceptedAt)}</span>
+                            <span><b>On Route:</b> ${formatTimestamp(ts.onRouteAt)}</span>
+                            <span><b>Delivered:</b> ${formatTimestamp(ts.deliveredAt)}</span>
+                        </div>`;
+                    deliveredOrdersList.appendChild(orderEl);
+                });
+            } else { deliveredOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">No delivered orders yet.</p>`; }
+        };
+
+        const renderSupplierDashboard = () => {
+            const supplierOrdersList = document.getElementById('supplier-orders-list');
+            supplierOrdersList.innerHTML = '';
+            
+            const activeOrders = allOrders.filter(o => o.status !== 'new' && o.status !== 'delivered');
+            const progressMeta = {
+                steps: ['pushed', 'accepted', 'processing', 'on-route'],
+                labels: {'pushed': 'Pushed', 'accepted': 'Accepted', 'processing': 'Processing', 'on-route': 'On Route'},
+                icons: {
+                    'pushed': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>`,
+                    'accepted': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+                    'processing': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`,
+                    'on-route': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1zM3 11h10" /></svg>`,
+                },
+                nextAction: {'pushed': 'Accept Order', 'accepted': 'Start Processing', 'processing': 'Ship (On Route)', 'on-route': 'Mark Delivered'},
+                nextStatus: {'pushed': 'accepted', 'accepted': 'processing', 'processing': 'on-route', 'on-route': 'delivered'}
+            };
+
+            if (activeOrders.length > 0) {
+                activeOrders.sort((a,b) => (a.timestamps.pushedAt?.toMillis() || 0) - (b.timestamps.pushedAt?.toMillis() || 0));
+                activeOrders.forEach(order => {
+                    const orderEl = document.createElement('div');
+                    orderEl.className = 'fade-in card p-6 rounded-xl space-y-6';
+                    
+                    const currentStepIndex = progressMeta.steps.indexOf(order.status);
+                    // 3 steps for 4 icons, so each step is 33.33%
+                    const progressPercentage = currentStepIndex > 0 ? (currentStepIndex / (progressMeta.steps.length - 1)) * 100 : 0;
+                    
+                    let iconsHTML = progressMeta.steps.map((step, index) => {
+                       const state = index < currentStepIndex ? 'completed' : (index === currentStepIndex ? 'active' : '');
+                       return `<div class="step-wrapper ${state}"><div class="progress-icon ${state}">${progressMeta.icons[step]}</div><span class="step-label">${progressMeta.labels[step]}</span></div>`;
+                    }).join('');
+
+                    orderEl.innerHTML = `
+                        <p class="font-bold text-xl text-white text-center">${order.orderName}</p>
+                        <div class="pt-4">
+                            <div class="progress-container">
+                                <div class="progress-track-base"></div>
+                                <div class="progress-track-line" style="width: ${progressPercentage}%"></div>
+                                ${iconsHTML}
+                            </div>
+                        </div>
+                        <div class="pt-4 flex justify-center">
+                           <button data-id="${order.id}" data-status="${progressMeta.nextStatus[order.status]}" class="update-status-btn pushable">
+                                <span class="pushable-front">${progressMeta.nextAction[order.status]}</span>
+                           </button>
+                        </div>
+                    `;
+                    supplierOrdersList.appendChild(orderEl);
+                });
+            } else {
+                supplierOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8 text-lg">No active orders. Time for a coffee!</p>`;
+            }
+        };
+
+        const setView = (view) => {
+            currentView = view;
+            if (view === 'manager') {
+                managerDashboard.style.display = 'block';
+                supplierDashboard.style.display = 'none';
+                managerViewBtn.classList.add('active');
+                supplierViewBtn.classList.remove('active');
+                sliderThumb.style.width = `${managerViewBtn.offsetWidth}px`;
+                sliderThumb.style.transform = `translateX(${managerViewBtn.offsetLeft}px)`;
+                renderManagerDashboard();
+            } else {
+                managerDashboard.style.display = 'none';
+                supplierDashboard.style.display = 'block';
+                supplierViewBtn.classList.add('active');
+                managerViewBtn.classList.remove('active');
+                sliderThumb.style.width = `${supplierViewBtn.offsetWidth}px`;
+                sliderThumb.style.transform = `translateX(${supplierViewBtn.offsetLeft}px)`;
+                renderSupplierDashboard();
+            }
+        };
+        
+        // --- FIRESTORE & DATA OPS ---
+        const listenToOrders = () => {
+            if (ordersUnsubscribe) ordersUnsubscribe();
+            const q = query(collection(db, `artifacts/${appId}/public/data/orders`));
+            ordersUnsubscribe = onSnapshot(q, (snapshot) => {
+                allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setView(currentView);
+            }, (error) => console.error("Firestore snapshot error:", error));
+        };
+        
+        const createOrder = async (orderName) => {
+            if (!orderName.trim()) { showNotification("Order name cannot be empty."); return; }
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/orders`), {
+                    orderName: orderName, status: 'new', createdBy: userId,
+                    timestamps: { createdAt: serverTimestamp() }
+                });
+                document.getElementById('order-name-input').value = '';
+            } catch (error) { console.error("Error creating order:", error); showNotification("Failed to create the order."); }
+        };
+        
+        const updateOrderStatus = async (orderId, newStatus) => {
+             try {
+                const timestampField = `${newStatus.replace('-', '')}At`;
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), {
+                    status: newStatus,
+                    [`timestamps.${timestampField}`]: serverTimestamp()
+                });
+             } catch(error) { console.error("Error updating status:", error); showNotification("Failed to update status."); }
+        };
+
+        const pushAllNewOrders = async () => {
+            const newOrdersToPush = allOrders.filter(o => o.status === 'new');
+            if (newOrdersToPush.length === 0) { showNotification("No new orders to push."); return; }
+            try {
+                const batch = writeBatch(db);
+                newOrdersToPush.forEach(order => {
+                    const orderRef = doc(db, `artifacts/${appId}/public/data/orders`, order.id);
+                    batch.update(orderRef, { status: "pushed", "timestamps.pushedAt": serverTimestamp() });
+                });
+                await batch.commit();
+                showNotification(`Successfully pushed ${newOrdersToPush.length} orders.`);
+            } catch (error) { console.error("Error pushing all orders:", error); showNotification("Failed to push all orders."); }
+        };
+
+        const exportToCSV = () => {
+            const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
+            if (deliveredOrders.length === 0) { showNotification("No delivered orders to export."); return; }
+            const headers = ['OrderName', 'Created', 'Pushed', 'Accepted', 'Processing', 'OnRoute', 'Delivered'];
+            const rows = deliveredOrders.map(o => {
+                const ts = o.timestamps;
+                return [`"${o.orderName.replace(/"/g, '""')}"`,formatTimestamp(ts.createdAt),formatTimestamp(ts.pushedAt),formatTimestamp(ts.acceptedAt),formatTimestamp(ts.processingAt),formatTimestamp(ts.onRouteAt),formatTimestamp(ts.deliveredAt),].join(',');
+            });
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `delivered_orders_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // --- EVENT LISTENERS ---
+        supplierViewBtn.addEventListener('click', () => setView('supplier'));
+        managerViewBtn.addEventListener('click', () => setView('manager'));
+
+        document.body.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            if (target.classList.contains('push-one-btn')) updateOrderStatus(target.dataset.id, 'pushed');
+            if (target.id === 'push-all-btn') pushAllNewOrders();
+            if (target.classList.contains('update-status-btn')) updateOrderStatus(target.dataset.id, target.dataset.status);
+            if (target.id === 'create-order-btn') createOrder(document.getElementById('order-name-input').value);
+            if (target.id === 'export-csv-btn') exportToCSV();
+        });
+        
+        // --- AUTH & APP START ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userIdDisplay.textContent = userId;
+                listenToOrders();
+                loadingSpinner.style.display = 'none';
+                dashboardsContainer.classList.remove('hidden');
+                
+                // Initial call to prevent empty icon divs if manager view loads first
+                if (currentView === 'manager') {
+                     create3DScene('new-orders-icon', new THREE.BoxGeometry(1.5, 1.5, 1.5), 0xF5651D);
+                     create3DScene('pushed-orders-icon', new THREE.TorusGeometry(0.8, 0.3, 16, 100), 0x762D16);
+                     create3DScene('delivered-orders-icon', new THREE.IcosahedronGeometry(1), 0x10b981);
+                }
+                setView('manager'); // Set initial view and slider position
+            } else {
+                loadingSpinner.style.display = 'block';
+                dashboardsContainer.classList.add('hidden');
+            }
+        });
+
+        (async () => {
+            try {
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                else await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                loadingSpinner.innerHTML = `<p class="text-red-500">Authentication Failed. Please refresh.</p>`;
+            }
+        })();
+    </script>
+</body>
+</html>
