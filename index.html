@@ -3,597 +3,674 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Animated Order Dashboard</title>
+    <title>Vikas A Ram | 3D Interactive Portfolio</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        /* Base colors from palette */
-        :root {
-            --bg-dark-start: #4a4a4a;
-            --bg-dark-end: #1a1a1a;
-            --bg-card-tint: rgba(60, 40, 30, 0.15); /* Subtle brown tint for cards */
-            --primary-orange: #F5651D;
-            --accent-brown: #762D16;
-            --text-light: #F3F3F3;
-        }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark-end);
-            background-image: radial-gradient(circle at 50% 0%, var(--bg-dark-start) 0%, var(--bg-dark-end) 70%);
-            color: var(--text-light);
-            background-attachment: fixed;
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* BASE FONT AND LAYOUT ADJUSTMENTS */
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #050510; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #root { width: 100vw; height: 100vh; }
+        
+        /* Custom scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.7); 
+            border-radius: 4px;
         }
         
-        .card {
-            background: rgba(44, 44, 44, 0.45);
-            -webkit-backdrop-filter: blur(12px);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
-            position: relative;
-            overflow: hidden;
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass-panel {
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
         }
-        .card::before {
+
+        /* 3D Label Styles - Using CSS only for fixed pixel size */
+        .node-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: #00ffff;
+            font-size: 20px; /* Fixed size for 3D stability */
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            transition: opacity 0.3s;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        /* Holographic Image Frame */
+        .holo-frame {
+            position: relative;
+            padding: 4px;
+            background: linear-gradient(45deg, transparent 5%, #00ffff 5%, #00ffff 10%, transparent 10%, transparent 90%, #00ffff 90%, #00ffff 95%, transparent 95%);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        .holo-frame::after {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background-color: var(--bg-card-tint);
-            z-index: 1;
+            background: linear-gradient(to bottom, transparent 40%, rgba(0, 255, 255, 0.4) 50%, transparent 60%);
+            background-size: 100% 200%;
+            animation: scan 3s linear infinite;
+            pointer-events: none;
         }
-        .card > * { position: relative; z-index: 2; }
-        .card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 16px 45px 0 rgba(0, 0, 0, 0.5);
-            background: rgba(44, 44, 44, 0.6);
-        }
-
-        @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in { animation: fadeSlideIn 0.6s ease-out forwards; }
-        
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-dark-end); }
-        ::-webkit-scrollbar-thumb { background: var(--primary-orange); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--accent-brown); }
-        
-        .pushable {
-            background: var(--accent-brown);
-            border-radius: 12px;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            outline-offset: 4px;
-            transition: filter .15s;
-            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-        }
-        .pushable-front {
-            display: block;
-            padding: 12px 22px;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: bold;
-            color: white;
-            background: var(--primary-orange);
-            transform: translateY(-4px);
-            will-change: transform;
-            transition: transform .15s;
-        }
-        .pushable:hover { filter: brightness(110%); }
-        .pushable:hover .pushable-front { transform: translateY(-6px); }
-        .pushable:active .pushable-front { transform: translateY(-2px); }
-        .pushable.small .pushable-front { padding: 8px 16px; font-size: 0.875rem; }
-
-        .view-slider {
-            display: flex;
-            position: relative;
-            background-color: rgba(0,0,0,0.4);
-            border-radius: 99px;
-            padding: 4px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .view-slider-option {
-            padding: 8px 20px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #aaa;
-            transition: color 0.3s ease;
-            position: relative;
-            z-index: 2;
-        }
-        .view-slider-option.active { color: white; }
-        .view-slider-thumb {
-            position: absolute;
-            top: 4px;
-            height: calc(100% - 8px);
-            background: var(--primary-orange);
-            border-radius: 99px;
-            box-shadow: 0 0 10px var(--primary-orange);
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-            z-index: 1;
-        }
-        
-        .three-canvas { width: 50px !important; height: 50px !important; }
-
-        /* --- NEW AESTHETIC PROGRESS BAR --- */
-        .progress-container {
-            position: relative;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .progress-track-base {
-            position: absolute;
-            height: 4px;
-            width: 100%;
-            background-color: rgba(0,0,0,0.3);
-            border-radius: 2px;
-            z-index: 1;
-        }
-        .progress-track-line {
-            position: absolute;
-            height: 4px;
-            background: var(--primary-orange);
-            border-radius: 2px;
-            box-shadow: 0 0 8px var(--primary-orange);
-            z-index: 2;
-            width: 0%;
-            transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
-        }
-
-        .step-wrapper { display: flex; flex-direction: column; align-items: center; z-index: 3; width: 80px; }
-        .progress-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.4s ease; background-color: rgba(0,0,0,0.3); border: 2px solid #555; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
-        .progress-icon.active { background-color: var(--primary-orange); border-color: var(--text-light); transform: scale(1.2); box-shadow: 0 0 15px var(--primary-orange); }
-        .progress-icon.completed { background-color: #10b981; border-color: #fff; }
-        .progress-icon svg { width: 20px; height: 20px; color: var(--text-light); }
-        .step-label { margin-top: 8px; font-size: 12px; font-weight: 500; color: #ccc; transition: color 0.4s ease; }
-        .step-wrapper.active .step-label { color: var(--primary-orange); font-weight: 700; }
-        .step-wrapper.completed .step-label { color: #10b981; }
-
-        /* --- NEW AESTHETIC LOADING ANIMATION --- */
-        .comet-loader {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            position: relative;
-            animation: rotate 1.2s linear infinite;
-        }
-        .comet-loader::before , .comet-loader::after {
-            content: "";
-            box-sizing: border-box;
-            position: absolute;
-            inset: 0px;
-            border-radius: 50%;
-            border: 4px solid #333;
-        }
-        .comet-loader::after {
-            border-color: var(--primary-orange);
-            animation: rotate 0.6s linear infinite;
-        }
-        @keyframes rotate {
-            0% { transform: rotate(0deg) }
-            100% { transform: rotate(360deg) }
+        @keyframes scan {
+            0% { background-position: 0% 200%; }
+            100% { background-position: 0% -200%; }
         }
     </style>
 </head>
-<body class="antialiased">
+<body>
+    <div id="root"></div>
 
-    <!-- Main Container -->
-    <div class="min-h-screen flex flex-col items-center p-4">
-        
-        <!-- Header -->
-        <div class="w-full max-w-7xl mx-auto mb-6 text-center">
-            <h1 class="text-4xl font-extrabold text-white" style="text-shadow: 0 0 15px rgba(245, 101, 29, 0.5);">Order Fulfillment Dashboard</h1>
-            <p class="text-gray-400 mt-2">Your User ID (Share with colleagues): <code id="userId" class="bg-gray-800 bg-opacity-50 text-orange-400 text-sm p-1 rounded">...loading</code></p>
-        </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
 
-        <!-- View Switcher -->
-        <div class="flex items-center justify-center mb-8">
-            <div id="view-slider" class="view-slider">
-                <div id="view-slider-thumb" class="view-slider-thumb"></div>
-                <div id="supplier-view-btn" class="view-slider-option">Supplier</div>
-                <div id="manager-view-btn" class="view-slider-option active">Manager</div>
-            </div>
-        </div>
-        
-        <!-- Loading Container -->
-        <div id="loading" class="text-center pt-10">
-            <div class="comet-loader mx-auto"></div>
-            <p class="mt-4 text-gray-400">Syncing with the network...</p>
-        </div>
+        // =================================================================
+        // 🚨 CONFIGURATION: UI SCALING PARAMETERS 🚨
+        // UPDATED to use CSS clamp() function for continuous, dynamic scaling.
+        // Format: text-[clamp(MIN_SIZE, PREFERRED_SIZE_VW, MAX_SIZE)]
+        // =================================================================
+        const UI_SCALES = {
+            // --- FLUID TYPOGRAPHY SCALES ---
+            MAIN_TITLE_SCALE: 'text-[clamp(3rem,8vw,8rem)]', // Vikas A Ram (Scales from 2.5rem to 5rem)
+            SUBTITLE_SCALE: 'text-[clamp(2rem,2.5vw,5rem)]', // Robotics Engineer Title (Scales from 1.25rem to 1.875rem)
+            MODAL_TITLE_SCALE: 'text-[clamp(3rem,6vw,7rem)]', // Modal Header Title
+            BODY_TEXT_SCALE: 'text-[clamp(1.25rem,1.2vw,2.5rem)]', // Main content description text
+            CARD_TITLE_SCALE: 'text-[clamp(1.5rem,1.8vw,4.2rem)]',   // Role/Project Name in modals
+            DETAIL_TEXT_SCALE: 'text-[clamp(1.25rem,1vw,2rem)]', // Small descriptive text (years, location)
 
-        <!-- Dashboards Container -->
-        <div id="dashboards" class="w-full max-w-7xl mx-auto hidden">
-            <!-- Manager Dashboard -->
-            <div id="manager-dashboard">
-                 <div class="card p-6 rounded-xl mb-8">
-                    <h2 class="text-xl font-semibold mb-4 text-white">Create a New Order</h2>
-                    <div class="flex space-x-4">
-                        <input type="text" id="order-name-input" placeholder="e.g., '500x Hyper-Widgets'" class="flex-grow p-3 bg-gray-900 bg-opacity-50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-white">
-                        <button id="create-order-btn" class="pushable">
-                            <span class="pushable-front">Create Order</span>
-                        </button>
-                    </div>
-                </div>
+            // --- FLUID ICON SCALES ---
+            ICON_SIZE_LG: 'text-[clamp(1.5rem,4vw,5.3rem)]',       // Modal Header Icon
+            ICON_SIZE_MD: 'text-[clamp(1rem,3vw,4rem)]',   // Social Media Icons
+            ICON_SIZE_SM: 'text-[clamp(0.9rem,1.2vw,3rem)]', // Inline Contact/Detail Icons
+            BUTTON_ICON_SIZE: 'text-[clamp(1rem,2vw,2.5rem)]',  // Close/Back Button Icon
+            
+            // Fixed Sizes (kept non-fluid for container dimensions)
+            CONTAINER_SIZE_LG: 'w-24 h-24', 
+            BUTTON_CONTAINER_SIZE: 'w-14 h-14', 
+            
+            // Modal Size Configuration
+            MODAL_MAX_WIDTH: 'max-w-[60vh]',   
+            MODAL_MAX_HEIGHT: 'max-h-[90vh]', 
+        };
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    <div class="card p-4 rounded-xl">
-                        <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">New</h2><div id="new-orders-icon"></div></div>
-                        <div id="new-orders-list" class="space-y-4 min-h-[200px]"></div>
-                        <button id="push-all-btn" class="hidden mt-4 w-full pushable">
-                            <span class="pushable-front">Push All (10+)</span>
-                        </button>
-                    </div>
-                    <div class="card p-4 rounded-xl">
-                         <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">In Progress</h2><div id="pushed-orders-icon"></div></div>
-                        <div id="pushed-orders-list" class="space-y-3 min-h-[200px]"></div>
-                    </div>
-                    <div class="card p-4 rounded-xl">
-                         <div class="flex items-center justify-between mb-4"><h2 class="text-2xl font-bold text-white">Completed</h2><div id="delivered-orders-icon"></div></div>
-                         <button id="export-csv-btn" class="mb-4 w-full pushable"><span class="pushable-front">Export CSV</span></button>
-                        <div id="delivered-orders-list" class="space-y-3 min-h-[150px] max-h-[400px] overflow-y-auto"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Supplier Dashboard -->
-            <div id="supplier-dashboard" class="hidden">
-                 <h2 class="text-3xl font-bold text-white mb-6 text-center">Incoming Orders</h2>
-                 <div id="supplier-orders-list" class="space-y-8 min-h-[200px]"></div>
-            </div>
-        </div>
-        
-        <!-- Notification Modal -->
-        <div id="notification-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div class="card p-8 rounded-lg text-center max-w-sm">
-                <p id="notification-message" class="text-lg font-medium text-white"></p>
-                 <button id="notification-close-btn" class="mt-6 pushable"><span class="pushable-front">OK</span></button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, query, writeBatch, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- 3D ICONS SETUP ---
-        function create3DScene(containerId, geometry, color) {
-            const container = document.getElementById(containerId);
-            if (!container || container.childElementCount > 0) return;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-            renderer.setSize(50, 50);
-            container.appendChild(renderer.domElement);
-            const material = new THREE.MeshStandardMaterial({ color: color, metalness: 0.5, roughness: 0.5 });
-            const shape = new THREE.Mesh(geometry, material);
-            scene.add(shape);
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
-            camera.position.z = 2.5;
-            function animate() {
-                requestAnimationFrame(animate);
-                shape.rotation.x += 0.005;
-                shape.rotation.y += 0.005;
-                if(containerId === 'delivered-orders-icon') {
-                    const scale = 1 + Math.sin(Date.now() * 0.002) * 0.1;
-                    shape.scale.set(scale, scale, scale);
-                }
-                renderer.render(scene, camera);
+        // --- RESUME DATA ---
+        const PORTFOLIO_DATA = {
+            about: {
+                title: "About & Contact",
+                icon: "fa-user-astronaut",
+                // --- UPDATE IMAGE HERE ---
+                image: "IMG_7411.jpg", 
+                content: `My name is Vikas A Ram, studying Robotics and Automation Engineering at JSS Academy of Technical Education. I have a strong foundation in designing, implementing, and optimizing automated systems for enhanced efficiency and precision. 
+                
+                I am enterprising, analytical, and a fast learner, adept at collaborating with cross-functional teams to integrate technology and reduce operational costs. Currently serving as Co-Founder & CTO of Noirs Clothing.`,
+                contact: [
+                    { type: "Email", value: "vikasaram003@gmail.com", icon: "fa-envelope" },
+                    { type: "Phone", value: "+91-9741279291", icon: "fa-phone" },
+                    { type: "Location", value: "Bangalore, Karnataka - 560018", icon: "fa-map-marker-alt" }
+                ]
+            },
+            experience: {
+                title: "Professional Experience",
+                icon: "fa-briefcase",
+                items: [
+                    {
+                        role: "Co-Founder & CTO",
+                        company: "Noirs Clothing",
+                        year: "2025 - Present",
+                        desc: "Launched a D2C clothing brand. Managed product design, manufacturing, and digital marketing strategies. Achieved profitability within 3 months. Cultivated strong customer loyalty and built a recognizable brand identity."
+                    },
+                    {
+                        role: "Startup Pitch-Off Representative",
+                        company: "Global Tech Innovation Summit 2025",
+                        year: "2025",
+                        desc: "Selected to represent NOIRS. Developed and presented a high-impact pitch for our Patented Product. Secured initial LOI through targeted follow-up. Gained exposure to AI/Blockchain/IoT trends."
+                    },
+                    {
+                        role: "Full Stack Web Dev Intern",
+                        company: "Varcons Technologies",
+                        year: "Oct - Dec 2023",
+                        desc: "Internship on web development. Learnt HTML attributes, CSS, data collection/storage pipelines, and processing."
+                    },
+                    {
+                        role: "Cyber Security Intern",
+                        company: "Coincent Microsoft",
+                        year: "Sep - Nov 2022",
+                        desc: "Ethical hacking internship. Understood security checking, penetration methods, Kali Linux scanning, and vulnerability identification."
+                    }
+                ]
+            },
+            projects: {
+                title: "Projects",
+                icon: "fa-robot",
+                items: [
+                    {
+                        name: "Military Surveillance Robot",
+                        type: "Major Project (4th Year)",
+                        desc: "Building a robot capable of identifying mines and disarming them. Features facial recognition for Friend/Foe ID, automated drone/tank detection, and complete surveillance systems."
+                    },
+                    {
+                        name: "Maze Solving Robot",
+                        type: "Mini Project (3rd Year)",
+                        desc: "Coded algorithms for wall following and random mouse maze solving. Designed parts in Fusion 360 and ran simulations to analyze output values."
+                    },
+                    {
+                        name: "Battle Bots",
+                        type: "World Robotics Championship (2023)",
+                        desc: "Registered in battle bots division, reached semi-finals (4th place). Learnt Fusion 360, hardware-software integration, and team management."
+                    },
+                    {
+                        name: "Business Pitch Deck",
+                        type: "FKCCI-Manthan",
+                        desc: "Pitched business plan to FKCCI committee. Cleared till 3rd round. Gained understanding of market requirements, mentorship, and patenting."
+                    },
+                    {
+                        name: "Robotics Exhibitions",
+                        type: "College Events",
+                        desc: "Built line following, obstacle avoidance, and radar system robots using Arduino. Won 1st and 2nd prizes in exhibitions."
+                    }
+                ]
+            },
+            skills: {
+                title: "Skills",
+                icon: "fa-microchip",
+                list: [
+                    "Python, Java, C++",
+                    "Fusion 360 (AutoCAD)",
+                    "Robotics & Automation",
+                    "Leadership & Strategy",
+                    "Cyber Security Basics",
+                    "Full Stack Web Dev",
+                    "Networking",
+                    "Communication (5 Languages)",
+                    "Analytical Approaches"
+                ]
+            },
+            education: {
+                title: "Education",
+                icon: "fa-graduation-cap",
+                items: [
+                    { name: "JSSATE", degree: "BE in Robotics and Automation", score: "Distinction", year: "2021-2025" },
+                    { name: "PES PU College", degree: "Pre-University (PCMC)", score: "86%", year: "2020-2021" },
+                    { name: "RV Public School", degree: "ICSE (10th)", score: "85%", year: "2009-2019" }
+                ]
+            },
+            leadership: {
+                title: "Leadership & Social",
+                icon: "fa-users",
+                items: [
+                    {
+                        name: "NCC Camp",
+                        type: "National Cadet Corps",
+                        desc: "Attended 10-day camp. Leader of the parade unit marching division. Won volleyball and football competitions. 2nd Place overall."
+                    },
+                    {
+                        name: "NSS Camp",
+                        type: "National Service Scheme",
+                        desc: "Service to societal backward classes. Taught English/Math to school students. Built a private playground for a government school. Focused on solving societal problems."
+                    },
+                    {
+                        name: "Industrial Visit",
+                        type: "FANUC",
+                        desc: "Visited FANUC industry to understand real-life robot building and working scenarios."
+                    }
+                ]
             }
-            animate();
-        }
-
-        // --- CONFIG & INIT ---
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-        apiKey: "AIzaSyC8VEP1u6nzYPwLKaDTQGgJQPwmy8agXfs",
-        authDomain: "dashbaord-7b138.firebaseapp.com",
-        projectId: "dashbaord-7b138",
-        storageBucket: "dashbaord-7b138.firebasestorage.app",
-        messagingSenderId: "36456305702",
-        appId: "1:36456305702:web:272ea32363c30082ff42e7",
-        measurementId: "G-25N1M1ZYTK"
-        };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-order-dashboard-v7';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        setLogLevel('debug');
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // --- STATE & DOM ---
-        let currentView = 'manager', allOrders = [], userId = null, ordersUnsubscribe = null;
-        const managerDashboard = document.getElementById('manager-dashboard'), supplierDashboard = document.getElementById('supplier-dashboard'), loadingSpinner = document.getElementById('loading'), dashboardsContainer = document.getElementById('dashboards'), userIdDisplay = document.getElementById('userId');
-        const supplierViewBtn = document.getElementById('supplier-view-btn');
-        const managerViewBtn = document.getElementById('manager-view-btn');
-        const sliderThumb = document.getElementById('view-slider-thumb');
-
-        // --- UTILITY FUNCTIONS ---
-        const showNotification = (message) => {
-            document.getElementById('notification-message').textContent = message;
-            document.getElementById('notification-modal').classList.remove('hidden');
-        };
-        document.getElementById('notification-close-btn').addEventListener('click', () => {
-            document.getElementById('notification-modal').classList.add('hidden');
-        });
-        const formatTimestamp = (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString() : 'N/A';
-        
-        const getStatusBadge = (status) => {
-            const badges = {
-                new: 'bg-gray-700 text-gray-300',
-                pushed: 'bg-yellow-500 text-yellow-900 animate-pulse',
-                accepted: 'bg-blue-500 text-blue-100',
-                processing: 'bg-indigo-500 text-indigo-100',
-                'on-route': 'bg-purple-500 text-purple-100',
-                delivered: 'bg-green-500 text-green-100',
-            };
-            const text = status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
-            return `<span class="text-xs font-bold mr-2 px-2.5 py-1 rounded-full ${badges[status] || 'bg-gray-700'}">${text}</span>`;
-        };
-        
-        // --- RENDER FUNCTIONS ---
-        const renderManagerDashboard = () => {
-            const newOrdersList = document.getElementById('new-orders-list');
-            const pushedOrdersList = document.getElementById('pushed-orders-list');
-            const deliveredOrdersList = document.getElementById('delivered-orders-list');
-            const pushAllBtn = document.getElementById('push-all-btn');
-            newOrdersList.innerHTML = pushedOrdersList.innerHTML = deliveredOrdersList.innerHTML = '';
-            const newOrders = allOrders.filter(o => o.status === 'new');
-            const inProgressOrders = allOrders.filter(o => o.status !== 'new' && o.status !== 'delivered');
-            const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
-
-            if (newOrders.length > 0) {
-                newOrders.forEach(order => {
-                    const orderEl = document.createElement('div');
-                    orderEl.className = 'fade-in flex items-center justify-between p-3 bg-gray-900 bg-opacity-30 rounded-lg';
-                    orderEl.innerHTML = `<span class="font-medium">${order.orderName}</span><button data-id="${order.id}" class="push-one-btn pushable small"><span class="pushable-front">Push</span></button>`;
-                    newOrdersList.appendChild(orderEl);
-                });
-            } else { newOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">All clear!</p>`; }
-            if (newOrders.length >= 10) pushAllBtn.classList.remove('hidden'); else pushAllBtn.classList.add('hidden');
-
-            if (inProgressOrders.length > 0) {
-                inProgressOrders.sort((a,b) => (b.timestamps.createdAt?.toMillis() || 0) - (a.timestamps.createdAt?.toMillis() || 0));
-                inProgressOrders.forEach(order => {
-                    const orderEl = document.createElement('div');
-                    orderEl.className = 'fade-in flex items-center justify-between p-3 bg-gray-900 bg-opacity-30 rounded-lg';
-                    orderEl.innerHTML = `<span class="font-medium">${order.orderName}</span>${getStatusBadge(order.status)}`;
-                    pushedOrdersList.appendChild(orderEl);
-                });
-            } else { pushedOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">No active orders.</p>`; }
-            
-            if (deliveredOrders.length > 0) {
-                deliveredOrders.sort((a,b) => (b.timestamps.deliveredAt?.toMillis() || 0) - (a.timestamps.deliveredAt?.toMillis() || 0));
-                deliveredOrders.forEach(order => {
-                    const ts = order.timestamps;
-                    const orderEl = document.createElement('div');
-                    orderEl.className = 'fade-in p-3 bg-gray-900 bg-opacity-30 rounded-lg';
-                    orderEl.innerHTML = `
-                        <div class="flex justify-between items-center mb-2"><span class="font-medium">${order.orderName}</span><span class="text-sm font-semibold text-green-400">Completed</span></div>
-                        <div class="text-xs text-gray-400 mt-2 grid grid-cols-2 gap-1">
-                            <span><b>Pushed:</b> ${formatTimestamp(ts.pushedAt)}</span>
-                            <span><b>Accepted:</b> ${formatTimestamp(ts.acceptedAt)}</span>
-                            <span><b>On Route:</b> ${formatTimestamp(ts.onRouteAt)}</span>
-                            <span><b>Delivered:</b> ${formatTimestamp(ts.deliveredAt)}</span>
-                        </div>`;
-                    deliveredOrdersList.appendChild(orderEl);
-                });
-            } else { deliveredOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8">No delivered orders yet.</p>`; }
         };
 
-        const renderSupplierDashboard = () => {
-            const supplierOrdersList = document.getElementById('supplier-orders-list');
-            supplierOrdersList.innerHTML = '';
-            
-            const activeOrders = allOrders.filter(o => o.status !== 'new' && o.status !== 'delivered');
-            const progressMeta = {
-                steps: ['pushed', 'accepted', 'processing', 'on-route'],
-                labels: {'pushed': 'Pushed', 'accepted': 'Accepted', 'processing': 'Processing', 'on-route': 'On Route'},
-                icons: {
-                    'pushed': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>`,
-                    'accepted': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
-                    'processing': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`,
-                    'on-route': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1zM3 11h10" /></svg>`,
-                },
-                nextAction: {'pushed': 'Accept Order', 'accepted': 'Start Processing', 'processing': 'Ship (On Route)', 'on-route': 'Mark Delivered'},
-                nextStatus: {'pushed': 'accepted', 'accepted': 'processing', 'processing': 'on-route', 'on-route': 'delivered'}
-            };
+        // --- 3D SCENE COMPONENT ---
+        const ThreeScene = ({ activeSection, onSectionSelect }) => {
+            const mountRef = useRef(null);
+            const sceneRef = useRef(null);
+            const cameraRef = useRef(null);
+            const rendererRef = useRef(null);
+            const objectsRef = useRef([]);
+            const particlesRef = useRef(null);
+            const raycaster = useRef(new THREE.Raycaster());
+            const mouse = useRef(new THREE.Vector2());
+            const labelRefs = useRef({}); 
 
-            if (activeOrders.length > 0) {
-                activeOrders.sort((a,b) => (a.timestamps.pushedAt?.toMillis() || 0) - (b.timestamps.pushedAt?.toMillis() || 0));
-                activeOrders.forEach(order => {
-                    const orderEl = document.createElement('div');
-                    orderEl.className = 'fade-in card p-6 rounded-xl space-y-6';
+            const nodes = useMemo(() => [
+                { id: 'about', position: [0, 0, 0], color: 0x00ffff, size: 1.5, label: "Me" },
+                { id: 'experience', position: [4, 2, 2], color: 0xff0055, size: 1, label: "Experience" },
+                { id: 'projects', position: [-4, 3, -2], color: 0x55ff00, size: 1, label: "Projects" },
+                { id: 'skills', position: [3, -3, -3], color: 0xffaa00, size: 1, label: "Skills" },
+                { id: 'education', position: [-3, -2, 3], color: 0xaa00ff, size: 1, label: "Education" },
+                { id: 'leadership', position: [0, 4, 0], color: 0xffaa00, size: 1, label: "Leadership" },
+            ], []);
+
+            useEffect(() => {
+                const scene = new THREE.Scene();
+                scene.fog = new THREE.FogExp2(0x050510, 0.035); 
+                sceneRef.current = scene;
+
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 12;
+                cameraRef.current = camera;
+
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                mountRef.current.appendChild(renderer.domElement);
+                rendererRef.current = renderer;
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+                const pointLight = new THREE.PointLight(0x00ffff, 1.5);
+                pointLight.position.set(10, 10, 10);
+                scene.add(pointLight);
+                const pointLight2 = new THREE.PointLight(0xff0055, 1);
+                pointLight2.position.set(-10, -10, -10);
+                scene.add(pointLight2);
+
+                const geometry = new THREE.IcosahedronGeometry(1, 1);
+                
+                nodes.forEach(node => {
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: node.color, 
+                        shininess: 100,
+                        wireframe: true,
+                        emissive: node.color,
+                        emissiveIntensity: 0.2
+                    });
                     
-                    const currentStepIndex = progressMeta.steps.indexOf(order.status);
-                    // 3 steps for 4 icons, so each step is 33.33%
-                    const progressPercentage = currentStepIndex > 0 ? (currentStepIndex / (progressMeta.steps.length - 1)) * 100 : 0;
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(...node.position);
+                    mesh.scale.set(node.size, node.size, node.size);
+                    mesh.userData = { id: node.id, originalScale: node.size, label: node.label };
                     
-                    let iconsHTML = progressMeta.steps.map((step, index) => {
-                       const state = index < currentStepIndex ? 'completed' : (index === currentStepIndex ? 'active' : '');
-                       return `<div class="step-wrapper ${state}"><div class="progress-icon ${state}">${progressMeta.icons[step]}</div><span class="step-label">${progressMeta.labels[step]}</span></div>`;
-                    }).join('');
+                    const glowGeo = new THREE.SphereGeometry(0.8, 16, 16);
+                    const glowMat = new THREE.MeshBasicMaterial({ color: node.color, transparent: true, opacity: 0.3 });
+                    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+                    mesh.add(glowMesh);
 
-                    orderEl.innerHTML = `
-                        <p class="font-bold text-xl text-white text-center">${order.orderName}</p>
-                        <div class="pt-4">
-                            <div class="progress-container">
-                                <div class="progress-track-base"></div>
-                                <div class="progress-track-line" style="width: ${progressPercentage}%"></div>
-                                ${iconsHTML}
+                    scene.add(mesh);
+                    objectsRef.current.push(mesh);
+                });
+
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4444ff, transparent: true, opacity: 0.15 });
+                const points = nodes.map(n => new THREE.Vector3(...n.position));
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                
+                const indices = [];
+                for(let i=0; i<nodes.length; i++) {
+                    for(let j=i+1; j<nodes.length; j++) {
+                        if (i === 0 || new THREE.Vector3(...nodes[i].position).distanceTo(new THREE.Vector3(...nodes[j].position)) < 8) {
+                            indices.push(i, j);
+                        }
+                    }
+                }
+                lineGeometry.setIndex(indices);
+                const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+                scene.add(lines);
+
+                const particlesGeometry = new THREE.BufferGeometry();
+                const particlesCount = 3000;
+                const posArray = new Float32Array(particlesCount * 3);
+                const sizesArray = new Float32Array(particlesCount);
+                
+                for(let i = 0; i < particlesCount * 3; i++) {
+                    posArray[i] = (Math.random() - 0.5) * 60; 
+                    if (i % 3 === 0) sizesArray[i/3] = Math.random();
+                }
+                
+                particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+                particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizesArray, 1));
+                
+                const particlesMaterial = new THREE.PointsMaterial({
+                    size: 0.05,
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.8,
+                    sizeAttenuation: true
+                });
+                
+                const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+                particlesRef.current = particlesMesh;
+                scene.add(particlesMesh);
+
+                const onMouseMove = (event) => {
+                    mouse.current.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                };
+
+                const onClick = (event) => {
+                    raycaster.current.setFromCamera(mouse.current, camera);
+                    const intersects = raycaster.current.intersectObjects(objectsRef.current);
+                    
+                    if (intersects.length > 0) {
+                        const id = intersects[0].object.userData.id;
+                        onSectionSelect(id);
+                    } else {
+                        onSectionSelect(null); 
+                    }
+                };
+                
+                const onResize = () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                };
+
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('click', onClick);
+                window.addEventListener('resize', onResize);
+
+                let frameId;
+                const animate = () => {
+                    frameId = requestAnimationFrame(animate);
+                    const time = Date.now() * 0.001;
+
+                    objectsRef.current.forEach((obj, i) => {
+                        obj.rotation.x += 0.005;
+                        obj.rotation.y += 0.005;
+                        
+                        if (obj.userData.id !== 'about') {
+                            obj.position.y += Math.sin(time + i) * 0.002;
+                        }
+                    });
+
+                    if (particlesRef.current) {
+                        particlesRef.current.rotation.y = time * 0.05 + mouse.current.x * 0.1;
+                        particlesRef.current.rotation.x = mouse.current.y * 0.1;
+                    }
+
+                    raycaster.current.setFromCamera(mouse.current, camera);
+                    const intersects = raycaster.current.intersectObjects(objectsRef.current);
+
+                    objectsRef.current.forEach(obj => {
+                        const targetScale = obj.userData.originalScale;
+                        obj.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+                        obj.material.emissiveIntensity = 0.2;
+
+                        const labelDiv = labelRefs.current[obj.userData.id];
+                        if (labelDiv) {
+                            const vector = obj.position.clone();
+                            vector.project(camera);
+                            
+                            if (vector.z > 1) {
+                                labelDiv.style.display = 'none';
+                            } else {
+                                labelDiv.style.display = 'block';
+                                const x = (vector.x * .5 + .5) * window.innerWidth;
+                                const y = (-(vector.y * .5) + .5) * window.innerHeight;
+                                labelDiv.style.transform = `translate(-50%, -50%) translate(${x}px, ${y - 40}px)`; 
+                            }
+                        }
+                    });
+
+                    if (intersects.length > 0) {
+                        const hoveredObj = intersects[0].object;
+                        const targetScale = hoveredObj.userData.originalScale * 1.3;
+                        hoveredObj.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+                        hoveredObj.material.emissiveIntensity = 0.8;
+                        document.body.style.cursor = 'pointer';
+                        
+                        const labelDiv = labelRefs.current[hoveredObj.userData.id];
+                        if(labelDiv) labelDiv.style.color = '#fff';
+                    } else {
+                        document.body.style.cursor = 'default';
+                         Object.values(labelRefs.current).forEach(el => {
+                            if(el) el.style.color = '#00ffff';
+                         });
+                    }
+
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                return () => {
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('click', onClick);
+                    window.removeEventListener('resize', onResize);
+                    cancelAnimationFrame(frameId);
+                    if (mountRef.current) {
+                        mountRef.current.removeChild(renderer.domElement);
+                    }
+                };
+            }, [nodes]);
+
+            useEffect(() => {
+                if (!cameraRef.current) return;
+
+                let targetPos = new THREE.Vector3(0, 0, 12);
+                if (activeSection) {
+                    const targetNode = nodes.find(n => n.id === activeSection);
+                    if (targetNode) {
+                        targetPos = new THREE.Vector3(
+                            targetNode.position[0] * 0.8, 
+                            targetNode.position[1] * 0.8, 
+                            targetNode.position[2] + 4
+                        );
+                    }
+                }
+
+                let animFrame;
+                const animateCamera = () => {
+                    if (!cameraRef.current) return;
+                    cameraRef.current.position.lerp(targetPos, 0.05);
+                    cameraRef.current.lookAt(0,0,0);
+                    if (cameraRef.current.position.distanceTo(targetPos) > 0.01) {
+                        animFrame = requestAnimationFrame(animateCamera);
+                    }
+                };
+                animateCamera();
+
+                return () => cancelAnimationFrame(animFrame);
+            }, [activeSection, nodes]);
+
+            return (
+                <div className="relative w-full h-full">
+                    <div ref={mountRef} className="absolute inset-0 z-0" />
+                    {/* Render Labels */}
+                    {nodes.map(node => (
+                        <div 
+                            key={node.id} 
+                            ref={el => labelRefs.current[node.id] = el}
+                            className="node-label font-mono"
+                        >
+                            {node.label}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- UI OVERLAY COMPONENT ---
+        const Overlay = ({ activeSection, onBack }) => {
+            const data = activeSection ? PORTFOLIO_DATA[activeSection] : null;
+
+            if (!activeSection) {
+                return (
+                    <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-8">
+                        <header className="flex justify-between items-start fade-in">
+                            <div>
+                                {/* Using MAIN_TITLE_SCALE for fluid responsiveness across all screens */}
+                                <h1 className={`${UI_SCALES.MAIN_TITLE_SCALE} font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(0,255,255,0.5)]`}>VIKAS A RAM</h1>
+                                {/* Using SUBTITLE_SCALE for fluid responsiveness */}
+                                <p className={`text-cyan-100 opacity-90 mt-2 ${UI_SCALES.SUBTITLE_SCALE} font-light tracking-widest`}>ROBOTICS AND AUTOMATION ENGINEER | CTO </p>
+                            </div>
+                            <div className="text-right hidden md:block">
+                                <p className={`${UI_SCALES.DETAIL_TEXT_SCALE} text-gray-400 font-mono`}>STATUS: ONLINE</p>
+                                <p className={`${UI_SCALES.DETAIL_TEXT_SCALE} text-gray-400 font-mono`}>LOC: BANGALORE, IN</p>
+                            </div>
+                        </header>
+                        
+                        <div className="text-center fade-in delay-100">
+                            <p className={`${UI_SCALES.DETAIL_TEXT_SCALE} text-cyan-400 animate-pulse tracking-[0.2em] uppercase mb-2`}>Initialize Exploration</p>
+                            <p className={`${UI_SCALES.DETAIL_TEXT_SCALE} text-gray-500`}>Drag to Rotate Galaxy • Click Nodes for Data</p>
+                        </div>
+
+                        {/* Using ICON_SIZE_MD for fluid social icons */}
+                        <footer className={`flex gap-6 ${UI_SCALES.ICON_SIZE_MD} text-gray-400 pointer-events-auto fade-in pb-4`}>
+                            {/* --- UPDATE SOCIAL LINKS HERE --- */}
+                            
+                            {/* 1. Phone */}
+                            <a href="tel:+919741279291" className="hover:text-green-400 transition hover:scale-110" title="Call Me"><i className="fas fa-phone"></i></a>
+                            
+                            {/* 2. Email */}
+                            <a href="mailto:vikasaram003@gmail.com" className="hover:text-cyan-400 transition hover:scale-110" title="Email Me"><i className="fas fa-envelope"></i></a>
+                            
+                            {/* 3. LinkedIn (UPDATE THE HREF) */}
+                            <a href="https://www.linkedin.com/in/vikas-a-ram-ba3463313?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition hover:scale-110" title="LinkedIn (Update in Code)"><i className="fab fa-linkedin"></i></a>
+                            
+                            {/* 4. GitHub (UPDATE THE HREF) */}
+                            <a href="https://github.com/Vikas20101" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200 transition hover:scale-110" title="GitHub (Update in Code)"><i className="fab fa-github"></i></a>
+                        </footer>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="absolute inset-0 z-20 flex items-center justify-center p-4 md:p-8 pointer-events-none">
+                    <div className={`glass-panel w-full ${UI_SCALES.MODAL_MAX_WIDTH} ${UI_SCALES.MODAL_MAX_HEIGHT} rounded-xl p-6 md:p-10 pointer-events-auto flex flex-col relative fade-in overflow-hidden`}>
+                        
+                        {/* Background Decor */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -z-10"></div>
+                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
+
+                        <button 
+                            onClick={onBack}
+                            className={`absolute top-6 right-6 text-cyan-500 hover:text-white transition bg-black/20 hover:bg-red-500/20 ${UI_SCALES.BUTTON_CONTAINER_SIZE} rounded-full flex items-center justify-center border border-cyan-500/30`}
+                        >
+                            <i className={`fas fa-times ${UI_SCALES.BUTTON_ICON_SIZE}`}></i>
+                        </button>
+
+                        {/* Header */}
+                        <div className="flex items-center gap-6 mb-8 border-b border-cyan-500/20 pb-6">
+                            <div className={`${UI_SCALES.CONTAINER_SIZE_LG} rounded-2xl bg-gradient-to-br from-cyan-900 to-blue-900 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,255,0.2)] border border-cyan-500/50`}>
+                                <i className={`fas ${data.icon} ${UI_SCALES.ICON_SIZE_LG} text-cyan-300`}></i>
+                            </div>
+                            <div>
+                                <h2 className={`${UI_SCALES.MODAL_TITLE_SCALE} font-bold text-white tracking-wide`}>{data.title}</h2>
+                                <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-transparent mt-2 rounded"></div>
                             </div>
                         </div>
-                        <div class="pt-4 flex justify-center">
-                           <button data-id="${order.id}" data-status="${progressMeta.nextStatus[order.status]}" class="update-status-btn pushable">
-                                <span class="pushable-front">${progressMeta.nextAction[order.status]}</span>
-                           </button>
+
+                        {/* Content Area */}
+                        <div className="overflow-y-auto custom-scroll pr-4 flex-1">
+                            
+                            {/* ABOUT SECTION LAYOUT */}
+                            {activeSection === 'about' && (
+                                <div className="flex flex-col md:flex-row gap-8">
+                                    <div className="md:w-1/3 flex flex-col items-center">
+                                        <div className="w-64 h-64 rounded-lg holo-frame mb-6 overflow-hidden bg-black">
+                                            <img src={data.image} alt="Vikas A Ram" className="w-full h-full object-cover opacity-80 hover:opacity-100 transition duration-500" />
+                                        </div>
+                                        <div className="w-full space-y-4">
+                                            {data.contact.map((c, i) => (
+                                                <div key={i} className={`flex items-center gap-3 ${UI_SCALES.DETAIL_TEXT_SCALE} text-gray-300 bg-white/5 p-4 rounded border border-white/5 hover:border-cyan-500/30 transition`}>
+                                                    <i className={`fas ${c.icon} w-8 text-cyan-400 ${UI_SCALES.ICON_SIZE_SM}`}></i>
+                                                    <span className="truncate">{c.value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="md:w-2/3">
+                                        <p className={`text-gray-300 leading-relaxed ${UI_SCALES.BODY_TEXT_SCALE} whitespace-pre-line text-justify`}>
+                                            {data.content}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* SKILLS LAYOUT */}
+                            {activeSection === 'skills' && (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                                    {data.list.map((skill, i) => (
+                                        <div key={i} className="p-5 rounded-lg bg-gradient-to-br from-white/5 to-white/0 border border-white/10 hover:border-cyan-400/50 transition group cursor-default">
+                                            <div className={`text-cyan-400 mb-2 group-hover:scale-110 transition-transform origin-left ${UI_SCALES.ICON_SIZE_SM}`}><i className="fas fa-code"></i></div>
+                                            <span className={`text-gray-200 font-medium ${UI_SCALES.DETAIL_TEXT_SCALE}`}>{skill}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* GENERIC LIST LAYOUT (Experience, Projects, Education, Leadership) */}
+                            {['experience', 'projects', 'education', 'leadership'].includes(activeSection) && (
+                                <div className="space-y-8">
+                                    {data.items.map((item, i) => (
+                                        <div key={i} className="bg-white/5 p-7 rounded-xl hover:bg-white/10 transition border-l-4 border-cyan-500 relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition"></div>
+                                            
+                                            <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
+                                                <h3 className={`font-bold ${UI_SCALES.CARD_TITLE_SCALE} text-cyan-50 group-hover:text-cyan-400 transition`}>{item.role || item.name}</h3>
+                                                <span className={`${UI_SCALES.DETAIL_TEXT_SCALE} font-mono text-cyan-300 bg-cyan-900/30 px-3 py-1 rounded-full border border-cyan-500/20 mt-2 md:mt-0 w-fit`}>
+                                                    {item.year || item.type}
+                                                </span>
+                                            </div>
+                                            
+                                            <p className={`${UI_SCALES.DETAIL_TEXT_SCALE} font-semibold text-gray-300 mb-3 flex items-center gap-2`}>
+                                                <i className={`fas fa-building ${UI_SCALES.ICON_SIZE_SM} text-gray-500`}></i>
+                                                {item.company || item.degree} 
+                                                {item.score && <span className="text-green-400 ml-2">• {item.score}</span>}
+                                            </p>
+                                            
+                                            {item.desc && (
+                                                <p className={`text-gray-400 ${UI_SCALES.BODY_TEXT_SCALE} leading-relaxed border-t border-white/5 pt-4 mt-2`}>
+                                                    {item.desc}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    `;
-                    supplierOrdersList.appendChild(orderEl);
-                });
-            } else {
-                supplierOrdersList.innerHTML = `<p class="text-gray-400 text-center p-8 text-lg">No active orders. Time for a coffee!</p>`;
-            }
+                        
+                        <div className="mt-8 pt-4 border-t border-white/10 text-center">
+                            <button onClick={onBack} className={`${UI_SCALES.DETAIL_TEXT_SCALE} text-cyan-500 hover:text-white transition flex items-center justify-center gap-2 w-full`}>
+                                <i className="fas fa-arrow-left"></i> Return to Galaxy Map
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
-        const setView = (view) => {
-            currentView = view;
-            if (view === 'manager') {
-                managerDashboard.style.display = 'block';
-                supplierDashboard.style.display = 'none';
-                managerViewBtn.classList.add('active');
-                supplierViewBtn.classList.remove('active');
-                sliderThumb.style.width = `${managerViewBtn.offsetWidth}px`;
-                sliderThumb.style.transform = `translateX(${managerViewBtn.offsetLeft}px)`;
-                renderManagerDashboard();
-            } else {
-                managerDashboard.style.display = 'none';
-                supplierDashboard.style.display = 'block';
-                supplierViewBtn.classList.add('active');
-                managerViewBtn.classList.remove('active');
-                sliderThumb.style.width = `${supplierViewBtn.offsetWidth}px`;
-                sliderThumb.style.transform = `translateX(${supplierViewBtn.offsetLeft}px)`;
-                renderSupplierDashboard();
-            }
-        };
-        
-        // --- FIRESTORE & DATA OPS ---
-        const listenToOrders = () => {
-            if (ordersUnsubscribe) ordersUnsubscribe();
-            const q = query(collection(db, `artifacts/${appId}/public/data/orders`));
-            ordersUnsubscribe = onSnapshot(q, (snapshot) => {
-                allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setView(currentView);
-            }, (error) => console.error("Firestore snapshot error:", error));
-        };
-        
-        const createOrder = async (orderName) => {
-            if (!orderName.trim()) { showNotification("Order name cannot be empty."); return; }
-            try {
-                await addDoc(collection(db, `artifacts/${appId}/public/data/orders`), {
-                    orderName: orderName, status: 'new', createdBy: userId,
-                    timestamps: { createdAt: serverTimestamp() }
-                });
-                document.getElementById('order-name-input').value = '';
-            } catch (error) { console.error("Error creating order:", error); showNotification("Failed to create the order."); }
-        };
-        
-        const updateOrderStatus = async (orderId, newStatus) => {
-             try {
-                const timestampField = `${newStatus.replace('-', '')}At`;
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), {
-                    status: newStatus,
-                    [`timestamps.${timestampField}`]: serverTimestamp()
-                });
-             } catch(error) { console.error("Error updating status:", error); showNotification("Failed to update status."); }
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeSection, setActiveSection] = useState(null);
+
+            return (
+                <div className="relative w-full h-full bg-black">
+                    <ThreeScene activeSection={activeSection} onSectionSelect={setActiveSection} />
+                    <Overlay activeSection={activeSection} onBack={() => setActiveSection(null)} />
+                </div>
+            );
         };
 
-        const pushAllNewOrders = async () => {
-            const newOrdersToPush = allOrders.filter(o => o.status === 'new');
-            if (newOrdersToPush.length === 0) { showNotification("No new orders to push."); return; }
-            try {
-                const batch = writeBatch(db);
-                newOrdersToPush.forEach(order => {
-                    const orderRef = doc(db, `artifacts/${appId}/public/data/orders`, order.id);
-                    batch.update(orderRef, { status: "pushed", "timestamps.pushedAt": serverTimestamp() });
-                });
-                await batch.commit();
-                showNotification(`Successfully pushed ${newOrdersToPush.length} orders.`);
-            } catch (error) { console.error("Error pushing all orders:", error); showNotification("Failed to push all orders."); }
-        };
-
-        const exportToCSV = async () => {
-        const deliveredOrders = allOrders.filter(o => o.status === 'delivered');
-        if (deliveredOrders.length === 0) { 
-            showNotification("No delivered orders to export."); 
-            return; 
-        }
-
-        // This part creates and downloads the file
-        const headers = ['OrderName', 'Created', 'Pushed', 'Accepted', 'Processing', 'OnRoute', 'Delivered'];
-        const rows = deliveredOrders.map(o => {
-            const ts = o.timestamps;
-            return [`"${o.orderName.replace(/"/g, '""')}"`,formatTimestamp(ts.createdAt),formatTimestamp(ts.pushedAt),formatTimestamp(ts.acceptedAt),formatTimestamp(ts.processingAt),formatTimestamp(ts.onRouteAt),formatTimestamp(ts.deliveredAt),].join(',');
-        });
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `delivered_orders_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        // --- This new part clears the list after exporting ---
-        try {
-            const batch = writeBatch(db);
-            deliveredOrders.forEach(order => {
-                const orderRef = doc(db, `artifacts/${appId}/public/data/orders`, order.id);
-                batch.delete(orderRef);
-            });
-            await batch.commit();
-            showNotification(`Successfully exported and cleared ${deliveredOrders.length} completed orders.`);
-        } catch (error) {
-            console.error("Error clearing orders after export:", error);
-            showNotification("Exported successfully, but failed to clear the list.");
-        }
-    };
-
-        // --- EVENT LISTENERS ---
-        supplierViewBtn.addEventListener('click', () => setView('supplier'));
-        managerViewBtn.addEventListener('click', () => setView('manager'));
-
-        document.body.addEventListener('click', (e) => {
-            const target = e.target.closest('button');
-            if (!target) return;
-            if (target.classList.contains('push-one-btn')) updateOrderStatus(target.dataset.id, 'pushed');
-            if (target.id === 'push-all-btn') pushAllNewOrders();
-            if (target.classList.contains('update-status-btn')) updateOrderStatus(target.dataset.id, target.dataset.status);
-            if (target.id === 'create-order-btn') createOrder(document.getElementById('order-name-input').value);
-            if (target.id === 'export-csv-btn') exportToCSV();
-        });
-        
-        // --- AUTH & APP START ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                userIdDisplay.textContent = userId;
-                listenToOrders();
-                loadingSpinner.style.display = 'none';
-                dashboardsContainer.classList.remove('hidden');
-                
-                // Initial call to prevent empty icon divs if manager view loads first
-                if (currentView === 'manager') {
-                     create3DScene('new-orders-icon', new THREE.BoxGeometry(1.5, 1.5, 1.5), 0xF5651D);
-                     create3DScene('pushed-orders-icon', new THREE.TorusGeometry(0.8, 0.3, 16, 100), 0x762D16);
-                     create3DScene('delivered-orders-icon', new THREE.IcosahedronGeometry(1), 0x10b981);
-                }
-                setView('manager'); // Set initial view and slider position
-            } else {
-                loadingSpinner.style.display = 'block';
-                dashboardsContainer.classList.add('hidden');
-            }
-        });
-
-        (async () => {
-            try {
-                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                else await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Authentication failed:", error);
-                loadingSpinner.innerHTML = `<p class="text-red-500">Authentication Failed. Please refresh.</p>`;
-            }
-        })();
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
